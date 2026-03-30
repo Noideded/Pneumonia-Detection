@@ -1,0 +1,31 @@
+Features:
+
+-Transfer learning with EfficientNetV2B0 (ImageNet pretrained)
+-Custom classification head for medical imaging
+-Robust dataset pipeline with proper train/val/test splits
+-Class imbalance handling using class weights
+-Advanced label-aware data augmentation
+-Threshold optimization using precision-recall tradeoff
+-Comprehensive evaluation with precision, recall, and F1-score
+
+Problems and Solutions:
+
+-Handling Class Imbalance
+Dataset exhibited imbalance (~1:2.7 ratio).
+
+Solution:
+Computed class weights using:
+compute_class_weight('balanced', ...)
+Applied during training:
+model.fit(..., class_weight=class_weight_dict)
+
+-Data Augmentation
+
+Implemented label-aware augmentation strategy:
+Class 0 (minority / NORMAL):
+Heavy augmentation (rotation, zoom, brightness, contrast)
+Class 1 (PNEUMONIA):
+30% probability of light augmentation
+Otherwise left unchanged
+
+Final implementation uses batch-safe TensorFlow operations (tf.where) to avoid shape errors and improve performance.
