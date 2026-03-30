@@ -1,31 +1,107 @@
 Features:
 
 -Transfer learning with EfficientNetV2B0 (ImageNet pretrained)
--Custom classification head for medical imaging
--Robust dataset pipeline with proper train/val/test splits
+-Custom classification head for binary prediction
+-End-to-end dataset pipeline:
+-Kaggle download
+-Merging datasets
+-Custom train/val/test split
 -Class imbalance handling using class weights
--Advanced label-aware data augmentation
--Threshold optimization using precision-recall tradeoff
--Comprehensive evaluation with precision, recall, and F1-score
+-Threshold optimization using precision-recall curve
+-Evaluation using classification metrics (precision, recall, F1-score)
 
 Problems and Solutions:
 
--Handling Class Imbalance
-Dataset exhibited imbalance (~1:2.7 ratio).
+-Class Imbalance Handling:
+Dataset imbalance was addressed using:
 
-Solution:
-Computed class weights using:
-compute_class_weight('balanced', ...)
-Applied during training:
-model.fit(..., class_weight=class_weight_dict)
+"compute_class_weight('balanced', ...)"
 
--Data Augmentation
+Class weights are passed into training:
 
-Implemented label-aware augmentation strategy:
-Class 0 (minority / NORMAL):
-Heavy augmentation (rotation, zoom, brightness, contrast)
-Class 1 (PNEUMONIA):
-30% probability of light augmentation
-Otherwise left unchanged
+"model.fit(..., class_weight=class_weight_dict)"
 
-Final implementation uses batch-safe TensorFlow operations (tf.where) to avoid shape errors and improve performance.
+This helps reduce bias toward the majority class.
+
+-Threshold Optimization
+
+Instead of using the default threshold (0.5), the model uses a data-driven threshold:
+
+"precision, recall, thresholds = precision_recall_curve(...)"
+
+The selected threshold minimizes the difference between precision and recall:
+
+"optimal_idx = np.argmin(np.abs(precision - recall))"
+
+This improves balance between:
+False positives
+False negatives
+
+-Training Pipeline
+
+Training includes:
+
+Early stopping:
+Monitors validation loss
+Restores best weights
+
+Model checkpointing:
+Saves best-performing model
+EarlyStopping(...)
+ModelCheckpoint(...)
+
+-Mismatched Prediction Lengths
+
+Issue:
+Predictions did not match dataset size
+
+Fix:
+"model.predict(dataset, steps=len(dataset))"
+
+-Incorrect Prediction Shape
+
+Issue:
+Predictions had shape (N,1) instead of (N,)
+
+Fix:
+"predictions.ravel()"
+
+-Broken Validation Split
+
+Issue:
+Validation set contained extremely few samples
+
+Cause:
+Mixing manual splitting with validation_split
+
+Fix:
+Rebuilt dataset pipeline using only manual splitting
+
+-Class Distribution Issues
+
+Issue:
+Model biased toward majority class
+
+Fix:
+Applied class weights
+Used precision/recall-based evaluation
+
+-TensorFlow Dataset Handling Issues
+
+Issue:
+Difficulty extracting labels and counts from batched datasets
+
+Fix:
+Implemented safe label extraction and counting functions
+
+-TensorFlow Shape Errors in Augmentation (Resolved During Development)
+
+Issue:
+Shape mismatch errors when applying per-sample augmentation
+
+Cause:
+Incorrect handling of batched tensors
+
+Resolution:
+Identified need for batch-safe operations when working with tf.data.Dataset
+(Note: augmentation pipeline is defined but not currently integrated into training)
